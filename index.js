@@ -48,4 +48,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = app; // exportado para tests
+module.exports = app; 
