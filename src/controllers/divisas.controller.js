@@ -6,7 +6,7 @@
 
 const axios = require('axios');
 
-const BASE_CURRENCY  = process.env.BASE_CURRENCY  || 'USD';
+const BASE_CURRENCY  = process.env.BASE_CURRENCY  || 'MXN';
 const EXCHANGE_API_URL = process.env.EXCHANGE_API_URL || 'https://open.er-api.com/v6/latest';
 
 /**
@@ -22,12 +22,19 @@ const getTasas = async (req, res, next) => {
       return res.status(502).json({ error: 'No se pudieron obtener las tasas de cambio' });
     }
 
-    const { time_last_update_utc, base_code, rates } = response.data;
+    const { time_last_update_utc, base_code, rates, conversion_rates } = response.data;
+    
+    // Validamos si la API devuelve "rates" o "conversion_rates"
+    const ratesData = rates || conversion_rates;
+
+    if (!ratesData) {
+      return res.status(502).json({ error: 'Formato de respuesta de la API no válido' });
+    }
 
     // Sólo enviamos las monedas más relevantes para una tienda de pádel
     const monedasRelevantes = ['USD', 'EUR', 'MXN', 'GBP', 'ARS', 'CLP', 'COP'];
     const tasasFiltradas = Object.fromEntries(
-      Object.entries(rates).filter(([key]) => monedasRelevantes.includes(key))
+      Object.entries(ratesData).filter(([key]) => monedasRelevantes.includes(key))
     );
 
     res.json({
@@ -62,7 +69,15 @@ const convertir = async (req, res, next) => {
       return res.status(502).json({ error: 'No se pudo obtener la tasa de cambio' });
     }
 
-    const tasa = response.data.rates[a.toUpperCase()];
+    // Validamos si la API devuelve "rates" o "conversion_rates"
+    const ratesData = response.data.rates || response.data.conversion_rates;
+    
+    // Verificación de seguridad por si la API cambia su formato
+    if (!ratesData) {
+      return res.status(502).json({ error: 'Formato de respuesta de la API no válido (no se encontraron las tasas).' });
+    }
+
+    const tasa = ratesData[a.toUpperCase()];
     if (!tasa) {
       return res.status(400).json({ error: `Moneda destino "${a}" no soportada` });
     }
